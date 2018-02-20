@@ -9,7 +9,6 @@ var index = require('./routes/index');
 var users = require('./routes/users');
 
 var app = express();
-const amqp = require('./routes/amqp');
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

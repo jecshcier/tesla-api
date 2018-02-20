@@ -1,222 +1,237 @@
-const mysql = require('mysql');
-const moment = require('moment');
 const config = require('../../../config');
-const md5 = require('../lib/md5');
+const moment = require('moment');
 const Sequelize = require('sequelize');
 const sequelize = new Sequelize(config['db_config'].databaseName, config['db_config'].username, config['db_config'].password, config['db_config'].options);
-const USER = require('./dbModual/yun_user')(sequelize, Sequelize);
-const USER_GROUP = require('./dbModual/tesla_user_group')(sequelize, Sequelize);
-const USER_GROUP_CONTENT = require('./dbModual/tesla_group_content')(sequelize, Sequelize);
-const GROUP = require('./dbModual/tesla_group')(sequelize, Sequelize);
+const USER_GROUP = require('./models/tesla_user_group')(sequelize, Sequelize);
+const USER_GROUP_CONTENT = require('./models/tesla_group_content')(sequelize, Sequelize);
+const GROUP = require('./models/tesla_group')(sequelize, Sequelize);
 const uuid = require('node-uuid');
 moment.locale('zh-cn');
 console.log(sequelize.fn('NOW'));
+
+const callbackModel = () => {
+  return {
+    flag: false,
+    message: '',
+    data: null
+  }
+}
+
 module.exports = {
-  logincheck: function (user, callback) {
-    USER.findOne({
-      attributes: [
-        'id', 'password_salt', 'password', 'real_name', 'role_type'
-      ],
-      where: {
-        'login_name': user.username
-      }
-    }).then(function (result) {
-      if (!result) {
-        console.log("未注册");
-        callback(null);
-      } else {
-        console.log("账号正确");
-        var password_salt = result.get('password_salt');
-        var password = result.get('password');
-        var userPassword = md5.hex(user.password + password_salt);
-        var role_type = result.get('role_type');
-        if (password.match(userPassword)) {
-          var userInfo = {
-            'userID': result.get('id'),
-            'nickName': result.get('real_name'),
-            'role_type': role_type
-          }
-          console.log(userInfo)
-          callback(userInfo);
+  //获取所有项目组
+  getWholeProjectTeam: function () {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      GROUP.findAll().then((result)=>{
+        if (result) {
+          info.flag = true
+          info.message = "获取项目组成功"
+          info.data = JSON.parse(JSON.stringify(result))
+          resolve(info)
         } else {
-          callback(null);
+          info.message = "获取项目组失败"
+          reject(info);
         }
-      }
-    });
-  },
-  getWholeProjectTeam: function (callback) {
-    GROUP.findAll().then(function (result) {
-      if (result) {
-        callback(JSON.parse(JSON.stringify(result)));
-      } else {
-        callback(null);
-      }
+      })
     })
   },
-  getProjectTeamByUser: function (userID, callback) {
-    USER_GROUP.findAll({
-      attributes: [
-        'groupName', 'groupID'
-      ],
-      where: {
-        'userID': userID
-      }
-    }).then(function (result) {
-      if (result) {
-        callback(JSON.parse(JSON.stringify(result)));
-      } else {
-        callback(null);
-      }
+  //获取某用户的项目组
+  getUserGroups: function (userID) {
+    console.log('userid ---> ' + userID)
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      USER_GROUP.findAll({
+        attributes: [
+          'groupName', 'groupID'
+        ],
+        where: {
+          'userID': userID
+        }
+      }).then((result)=>{
+        if (result) {
+          info.flag = true
+          info.message = "获取项目组成功"
+          info.data = JSON.parse(JSON.stringify(result))
+          resolve(info)
+        } else {
+          info.message = "获取项目组失败"
+          reject(info);
+        }
+      })
+    })
+
+  },
+  //从某项目组中增加用户
+  addUserInGroup: function (data) {
+    console.log(data)
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      USER_GROUP.create({
+        'userID': data.userID,
+        'userName': data.userName,
+        'groupID': data.groupID,
+        'groupName': data.groupName
+      }).then((result) => {
+        let flag = JSON.stringify(result)
+        if (flag) {
+          info.flag = true
+          info.message = "新增用户成功"
+          info.data = JSON.parse(JSON.stringify(result))
+          resolve(info)
+        } else {
+          info.message = "新增用户失败"
+          reject(info);
+        }
+      }, (err) => {
+        console.log(err)
+        info.message = "新增用户失败"
+        reject(info);
+      });
     })
   },
-  deleteProjectTeamWithUser: function (userID, groupID, callback) {
-    USER_GROUP.destroy({
-      where: {
-        'userID': userID,
-        'groupID': groupID
-      }
-    }).then(function (result) {
-      if (result) {
-        callback(true);
-      } else {
-        callback(null);
-      }
+  //从某项目组中删除用户
+  deleteUserInGroup: function (userID, groupID) {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      USER_GROUP.destroy({
+        where: {
+          'userID': userID,
+          'groupID': groupID
+        }
+      }).then(function (result) {
+        if (result) {
+          info.flag = true
+          info.message = "删除用户成功"
+          info.data = JSON.parse(JSON.stringify(result))
+          resolve(info)
+        } else {
+          info.message = "删除用户失败"
+          reject(info);
+        }
+      })
     })
+
   },
-  createProjectTeamWithUser: function (user, group, callback) {
-    console.log(user);
-    USER_GROUP.create({
-      'userID': user.userID,
-      'userName': user.userName,
-      'groupID': group.groupID,
-      'groupName': group.groupName
-    }).then(function (result) {
-      var flag = JSON.stringify(result)
-      if (flag) {
-        callback(flag);
-      } else {
-        callback(null);
-      }
-    });
-  },
-  createProject: function (groupID, groupName, userID, callback) {
-    GROUP.create({'groupID': groupID, 'groupName': groupName, 'createUser': userID}).then(function (result) {
-      console.log(JSON.stringify(result));
-      if (result) {
-        var flag = {
-          ok: false,
-          commont: '',
-          data: JSON.parse(JSON.stringify(result))
-        };
-        callback(flag);
-      } else {
-        callback(null);
-      }
-    });
-  },
-  getProjectUsers: function (groupID, callback) {
-    USER_GROUP.findAll({
-      attributes: [
-        'userID', 'userName'
-      ],
-      where: {
-        'groupID': groupID
-      }
-    }).then(function (result) {
-      if (result) {
-        callback(JSON.parse(JSON.stringify(result)));
-      } else {
-        callback(null);
-      }
+  //创建新项目组
+  createGroup: function (groupID, groupName, userID) {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      GROUP.create({
+        'groupID': groupID,
+        'groupName': groupName,
+        'createUser': userID
+      }).then((result) => {
+        console.log(result)
+        if (result) {
+          info.flag = true
+          info.message = "创建新项目组成功"
+          info.data = JSON.parse(JSON.stringify(result))
+          resolve(info)
+        } else {
+          info.message = "创建新项目组失败"
+          reject(info);
+        }
+      }, (err) => {
+        console.log(err)
+        info.message = "创建新项目组失败"
+        reject(info);
+      });
     })
+
   },
-  saveMessages: function (userData, callback) {
-    USER_GROUP_CONTENT.create({
-      'contentID': uuid.v1(),
-      'groupID': userData.projectTeam["groupID"],
-      'groupName': userData.projectTeam["groupName"],
-      'userID': userData.userID,
-      'userName': userData.userName,
-      'message': userData.message,
-      'updateTime': userData.updateTime
-    }).then(function (result) {
-      if (result) {
-        callback(JSON.parse(JSON.stringify(result)));
-      } else {
-        callback(null);
-      }
-    });
+  //获取某项目组中的所有用户
+  getUsersInGroup: function (groupID) {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      USER_GROUP.findAll({
+        attributes: [
+          'userID', 'userName'
+        ],
+        where: {
+          'groupID': groupID
+        }
+      }).then((result) => {
+        if (result) {
+          info.flag = true
+          info.message = "获取用户成功"
+          info.data = JSON.parse(JSON.stringify(result))
+          resolve(info)
+        } else {
+          info.message = "获取用户失败"
+          reject(info);
+        }
+      })
+    })
+
   },
-  saveUserUpdateTime: function (userID, callback) {
-    USER.update({
-      'update_time': sequelize.fn('NOW')
-    }, {
-      where: {
-        'id': userID
-      }
-    }).then(function (result) {
-      if (result) {
-        callback(JSON.parse(JSON.stringify(result)));
-      } else {
-        callback(null);
-      }
-    });
+  //储存用户消息
+  saveMessages: function (userData) {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      USER_GROUP_CONTENT.create({
+        'contentID': uuid.v1(),
+        'groupID': userData.projectTeam["groupID"],
+        'groupName': userData.projectTeam["groupName"],
+        'userID': userData.userID,
+        'userName': userData.userName,
+        'message': userData.message,
+        'updateTime': userData.updateTime
+      }).then((result)=>{
+        if (result) {
+          info.flag = true
+          info.message = "储存消息成功"
+          info.data = JSON.parse(JSON.stringify(result))
+          resolve(info)
+        } else {
+          info.message = "储存消息失败"
+          reject(info);
+        }
+      },(err)=>{
+        console.log(err)
+        info.message = "储存消息失败"
+        reject(info);
+      })
+    })
+
   },
-  updateGroupUserName: function (userID, userName, callback) {
-    USER_GROUP.update({
-      'userName': userName
-    }, {
-      where: {
-        'userID': userID
-      }
-    }).then(function (result) {
-      if (result) {
-        callback(JSON.parse(JSON.stringify(result)));
-      } else {
-        callback(null);
-      }
-    });
-  },
+  //获取项目组内消息队列 - 10条/页
   getGroupMessages: function (groupID, page, callback) {
-    console.log(page)
-    page = parseInt(page) * 10;
-    USER_GROUP_CONTENT.findAll({
-      attributes: [
-        'groupID', 'userID', 'userName', 'message', 'updateTime'
-      ],
-      order: 'updateTime DESC',
-      where: {
-        'groupID': groupID
-      },
-      offset: page,
-      limit: 10
-    }).then(function (result) {
-      if (result) {
-        var data = JSON.parse(JSON.stringify(result));
-        console.log('长度:' + data.length);
-        for (var i = data.length - 1; i >= 0; i--) {
-          data[i].updateTime = moment(data[i].updateTime).format('YYYY-MM-DD HH:mm:ss');
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      page = parseInt(page) * 10;
+      USER_GROUP_CONTENT.findAll({
+        attributes: [
+          'groupID', 'userID', 'userName', 'message', 'updateTime'
+        ],
+        order: 'updateTime DESC',
+        where: {
+          'groupID': groupID
+        },
+        offset: page,
+        limit: 10
+      }).then((result)=>{
+        if (result) {
+          let data = JSON.parse(JSON.stringify(result));
+          console.log('长度:' + data.length);
+          for (let i = data.length - 1; i >= 0; i--) {
+            data[i].updateTime = moment(data[i].updateTime).format('YYYY-MM-DD HH:mm:ss');
+          }
+          info.flag = true
+          info.message = "获取消息成功"
+          info.data = data
+          resolve(info)
+        } else {
+          info.message = "获取消息失败"
+          reject(info);
         }
-        callback(data);
-      } else {
-        callback(null);
-      }
+      })
     })
+
   },
-  getWholeUser: function (callback) {
-    USER.findAll({
-      attributes: ['id', 'real_name', 'login_name']
-    }).then(function (result) {
-      if (result) {
-        callback(JSON.parse(JSON.stringify(result)));
-      } else {
-        callback(null);
-      }
-    })
-  },
+  //获取用户日志
   getUserDaily: (flag) => {
     return new Promise(function (resolve, reject) {
-      let info = new config.callbackModel()
+      let info = callbackModel()
       let latestTime = ''
       if (flag === 'latest') {
         USER_GROUP_CONTENT.findOne({
