@@ -96,6 +96,7 @@ router.post('/getUsersInGroup', (req, res, next) => {
 })
 //储存用户消息
 router.post('/saveMessages', (req, res, next) => {
+  console.log(req.body.userData)
   let userData = JSON.parse(req.body.userData)
   userData.updateTime = moment().format('YYYY-MM-DD HH:mm:ss')
   sql.saveMessages(userData).then((data) => {
@@ -121,6 +122,39 @@ router.post('/getGroupMessages', (req, res, next) => {
 //获取用户日志
 router.post('/getUserDaily', (req, res, next) => {
 
+})
+// 更新用户信息
+router.post('/updateUser', (req, res, next) => {
+  let user = req.body
+  sql.updateUser(user).then((data) => {
+    res.send(data)
+  }, (data) => {
+    console.log("错误 ------->")
+    console.log(data)
+    res.send(data)
+  })
+})
+
+// 获取所有用户
+router.post('/getWholeUser', (req, res, next) => {
+  sql.getWholeUser().then((data) => {
+    res.send(data)
+  }, (data) => {
+    console.log("错误 ------->")
+    console.log(data)
+    res.send(data)
+  })
+})
+// 更新用户最后登录时间
+router.post('/saveUserUpdateTime', (req, res, next) => {
+  let userID = req.body.userID
+  sql.saveUserUpdateTime(userID).then((data) => {
+    res.send(data)
+  }, (data) => {
+    console.log("错误 ------->")
+    console.log(data)
+    res.send(data)
+  })
 })
 
 module.exports = router;

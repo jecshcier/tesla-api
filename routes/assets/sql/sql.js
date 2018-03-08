@@ -4,6 +4,7 @@ const Sequelize = require('sequelize');
 const sequelize = new Sequelize(config['db_config'].databaseName, config['db_config'].username, config['db_config'].password, config['db_config'].options);
 const USER_GROUP = require('./models/tesla_user_group')(sequelize, Sequelize);
 const USER_GROUP_CONTENT = require('./models/tesla_group_content')(sequelize, Sequelize);
+const USER = require('./models/tesla_user')(sequelize, Sequelize);
 const GROUP = require('./models/tesla_group')(sequelize, Sequelize);
 const uuid = require('node-uuid');
 moment.locale('zh-cn');
@@ -18,11 +19,106 @@ const callbackModel = () => {
 }
 
 module.exports = {
-  //获取所有项目组
-  getWholeProjectTeam: function () {
+  updateUser: function(user) {
+    console.log('user------>', user)
     let info = callbackModel()
     return new Promise((resolve, reject) => {
-      GROUP.findAll().then((result)=>{
+      USER.findOne({
+        attributes: [
+          'user_id'
+        ],
+        where: {
+          'user_id': user.userID
+        }
+      }).then((result) => {
+        if (result) {
+          return USER.update({
+            'login_name': user.loginName,
+            'nick_name': user.nickName,
+            'role_type': user.identity,
+            'power_id': user.powerID
+          }, {
+            where: {
+              'user_id': user.userID
+            }
+          })
+        } else {
+          return USER.create({
+            'user_id': user.userID,
+            'login_name': user.loginName,
+            'nick_name': user.nickName,
+            'role_type': user.identity,
+            'power_id': user.powerID,
+            'create_time': moment().format('YYYY-MM-DD HH:mm:ss'),
+            'update_time': moment().format('YYYY-MM-DD HH:mm:ss')
+          })
+        }
+      }).then((result) => {
+        info.flag = true
+        info.message = "更新成功"
+        resolve(info)
+      }).catch((err) => {
+        console.log(err)
+        info.flag = false
+        info.message = err
+        reject(info)
+      })
+    })
+  },
+
+  // 获取所有用户
+  getWholeUser: () => {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      USER.findAll({
+        attributes: ['user_id', 'login_name', 'nick_name']
+      }).then(function(result) {
+        if (result) {
+          info.flag = true
+          info.data = JSON.parse(JSON.stringify(result))
+          info.message = '获取用户成功'
+          resolve(info)
+        } else {
+          info.flag = false
+          info.data = null
+          info.message = "暂无数据"
+          reject(info)
+        }
+      }).catch((err) => {
+        console.log(err)
+        info.flag = false
+        info.data = null
+        info.message = "数据库查找失败"
+        reject(info)
+      })
+    })
+  },
+  // 更新用户最后登录时间
+  saveUserUpdateTime: (userID) => {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      USER.update({
+        'update_time': moment().format('YYYY-MM-DD HH:mm:ss')
+      }, {
+        where: {
+          'user_id': userID
+        }
+      }).then((result) => {
+        info.flag = true
+        info.message = "更新成功"
+        resolve(info)
+      }).catch((err)=>{
+        info.flag = false
+        info.message = err
+        resolve(info)
+      })
+    })
+  },
+  //获取所有项目组
+  getWholeProjectTeam: function() {
+    let info = callbackModel()
+    return new Promise((resolve, reject) => {
+      GROUP.findAll().then((result) => {
         if (result) {
           info.flag = true
           info.message = "获取项目组成功"
@@ -36,7 +132,7 @@ module.exports = {
     })
   },
   //获取某用户的项目组
-  getUserGroups: function (userID) {
+  getUserGroups: function(userID) {
     console.log('userid ---> ' + userID)
     let info = callbackModel()
     return new Promise((resolve, reject) => {
@@ -47,7 +143,7 @@ module.exports = {
         where: {
           'userID': userID
         }
-      }).then((result)=>{
+      }).then((result) => {
         if (result) {
           info.flag = true
           info.message = "获取项目组成功"
@@ -62,7 +158,7 @@ module.exports = {
 
   },
   //从某项目组中增加用户
-  addUserInGroup: function (data) {
+  addUserInGroup: function(data) {
     console.log(data)
     let info = callbackModel()
     return new Promise((resolve, reject) => {
@@ -90,7 +186,7 @@ module.exports = {
     })
   },
   //从某项目组中删除用户
-  deleteUserInGroup: function (userID, groupID) {
+  deleteUserInGroup: function(userID, groupID) {
     let info = callbackModel()
     return new Promise((resolve, reject) => {
       USER_GROUP.destroy({
@@ -98,7 +194,7 @@ module.exports = {
           'userID': userID,
           'groupID': groupID
         }
-      }).then(function (result) {
+      }).then(function(result) {
         if (result) {
           info.flag = true
           info.message = "删除用户成功"
@@ -113,7 +209,7 @@ module.exports = {
 
   },
   //创建新项目组
-  createGroup: function (groupID, groupName, userID) {
+  createGroup: function(groupID, groupName, userID) {
     let info = callbackModel()
     return new Promise((resolve, reject) => {
       GROUP.create({
@@ -140,7 +236,7 @@ module.exports = {
 
   },
   //获取某项目组中的所有用户
-  getUsersInGroup: function (groupID) {
+  getUsersInGroup: function(groupID) {
     let info = callbackModel()
     return new Promise((resolve, reject) => {
       USER_GROUP.findAll({
@@ -165,7 +261,7 @@ module.exports = {
 
   },
   //储存用户消息
-  saveMessages: function (userData) {
+  saveMessages: function(userData) {
     let info = callbackModel()
     return new Promise((resolve, reject) => {
       USER_GROUP_CONTENT.create({
@@ -176,7 +272,7 @@ module.exports = {
         'userName': userData.userName,
         'message': userData.message,
         'updateTime': userData.updateTime
-      }).then((result)=>{
+      }).then((result) => {
         if (result) {
           info.flag = true
           info.message = "储存消息成功"
@@ -186,7 +282,7 @@ module.exports = {
           info.message = "储存消息失败"
           reject(info);
         }
-      },(err)=>{
+      }, (err) => {
         console.log(err)
         info.message = "储存消息失败"
         reject(info);
@@ -195,7 +291,7 @@ module.exports = {
 
   },
   //获取项目组内消息队列 - 10条/页
-  getGroupMessages: function (groupID, page, callback) {
+  getGroupMessages: function(groupID, page, callback) {
     let info = callbackModel()
     return new Promise((resolve, reject) => {
       page = parseInt(page) * 10;
@@ -209,7 +305,7 @@ module.exports = {
         },
         offset: page,
         limit: 10
-      }).then((result)=>{
+      }).then((result) => {
         if (result) {
           let data = JSON.parse(JSON.stringify(result));
           console.log('长度:' + data.length);
@@ -230,7 +326,7 @@ module.exports = {
   },
   //获取用户日志
   getUserDaily: (flag) => {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function(resolve, reject) {
       let info = callbackModel()
       let latestTime = ''
       if (flag === 'latest') {
@@ -261,8 +357,7 @@ module.exports = {
                 }
               }
             })
-          }
-          else {
+          } else {
             info.message = "暂无数据"
             info.data = null
             resolve(info)
@@ -283,12 +378,12 @@ module.exports = {
               }
               if (!data[date].hasOwnProperty(el.userName)) {
                 let obj = data[date]
-                // 获取当天0点的秒数
+                  // 获取当天0点的秒数
                 let atime = moment(el.updateTime).format('YYYY-MM-DD')
                 atime = moment(atime).unix()
-                // 获取当天的时间
+                  // 获取当天的时间
                 let btime = moment(el.updateTime).unix()
-                // 计算差值，即获得了当天的时间换算成的秒数
+                  // 计算差值，即获得了当天的时间换算成的秒数
                 obj[el.userName] = {
                   time: btime - atime,
                   mess: el.message
@@ -301,8 +396,7 @@ module.exports = {
             info.message = "获取成功"
             info.data = data
             resolve(info)
-          }
-          else {
+          } else {
             info.flag = false
             info.message = "没有数据"
             info.data = null
@@ -312,8 +406,7 @@ module.exports = {
           info.message = '数据库连接错误' + err
           reject(info)
         })
-      }
-      else {
+      } else {
 
       }
     })
