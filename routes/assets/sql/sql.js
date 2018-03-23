@@ -291,10 +291,10 @@ module.exports = {
 
   },
   //获取项目组内消息队列 - 10条/页
-  getGroupMessages: function(groupID, page, callback) {
+  getGroupMessages: function(groupID, page,messNum, callback) {
     let info = callbackModel()
     return new Promise((resolve, reject) => {
-      page = parseInt(page) * 10;
+      page = parseInt(page) * parseInt(messNum);
       USER_GROUP_CONTENT.findAll({
         attributes: [
           'groupID', 'userID', 'userName', 'message', 'updateTime'
@@ -304,7 +304,7 @@ module.exports = {
           'groupID': groupID
         },
         offset: page,
-        limit: 10
+        limit: parseInt(messNum)
       }).then((result) => {
         if (result) {
           let data = JSON.parse(JSON.stringify(result));

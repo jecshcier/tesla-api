@@ -111,7 +111,8 @@ router.post('/saveMessages', (req, res, next) => {
 router.post('/getGroupMessages', (req, res, next) => {
   let groupID = req.body.groupID
   let page = req.body.page
-  sql.getGroupMessages(groupID, page).then((data) => {
+  let messNum = req.body.messNum
+  sql.getGroupMessages(groupID, page,messNum).then((data) => {
     res.send(data)
   }, (data) => {
     console.log("错误 ------->")
