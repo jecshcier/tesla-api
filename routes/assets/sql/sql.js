@@ -54,6 +54,14 @@ module.exports = {
           })
         }
       }).then((result) => {
+        return USER_GROUP.update({
+          'userName': user.nickName
+        }, {
+          where: {
+            'userID': user.userID
+          }
+        })
+      }).then((result) => {
         info.flag = true
         info.message = "更新成功"
         resolve(info)
@@ -107,7 +115,7 @@ module.exports = {
         info.flag = true
         info.message = "更新成功"
         resolve(info)
-      }).catch((err)=>{
+      }).catch((err) => {
         info.flag = false
         info.message = err
         resolve(info)
@@ -291,7 +299,7 @@ module.exports = {
 
   },
   //获取项目组内消息队列 - 10条/页
-  getGroupMessages: function(groupID, page,messNum, callback) {
+  getGroupMessages: function(groupID, page, messNum, callback) {
     let info = callbackModel()
     return new Promise((resolve, reject) => {
       page = parseInt(page) * parseInt(messNum);
